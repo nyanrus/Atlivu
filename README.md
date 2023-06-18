@@ -9,6 +9,18 @@ AviUtl 関係の資源を再利用できないかテストしています。
 Visual Studio 2022 のランタイムライブラリが必要です。(x86・x64 両方とも)
 https://docs.microsoft.com/ja-jp/cpp/windows/latest-supported-vc-redist?view=msvc-170
 
+## ビルド環境
+
+Visual Studioの場合、 \
+C++によるデスクトップ開発(C++ MFCオプション含め)、 \
+ユニバーサルWindowsプラットフォーム開発(Nugetのため) \
+が必要です。 
+
+https://github.com/hebiiro/Common-Library のフォルダ内にAtlivuフォルダを配置します。
+
+AviUtl公式サイトからaviutl_plugin_sdkをダウンロードし、下のような配置になるよう置きます。 \
+Common-Library/Aviutl/aviutl_plugin_sdk/(各種 auf,cpp,def,hなど)
+
 ## 導入方法
 
 1. 以下のファイルとフォルダを任意のフォルダに配置します。
