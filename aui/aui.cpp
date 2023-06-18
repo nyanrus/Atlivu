@@ -2,6 +2,7 @@
 #include "aui.h"
 #include "Plugin.h"
 #include "Common/Tracer2.h"
+#include <boost/interprocess/ipc/message_queue.hpp>
 
 //--------------------------------------------------------------------
 
@@ -275,6 +276,26 @@ void readAudio()
 	}
 
 	MY_TRACE(_T("readAudio() succeeded\n"));
+}
+
+BOOL newMainLoop()
+{
+	MY_TRACE(_T("newMainLoop()\n"));
+	boost::interprocess::message_queue mq(boost::interprocess::open_only,"Atlivu_aui");
+	int32_t message;
+	uint32_t receivedSize;
+	uint32_t priority;
+	
+	while (true) {
+		mq.receive(&message, sizeof(int32_t), receivedSize, priority);
+		using namespace Input;
+		switch (message) {
+		case CommandID::End:
+			return TRUE;
+		case CommandID::LoadPlugin:
+			break;
+		}
+	}
 }
 
 BOOL mainLoop()

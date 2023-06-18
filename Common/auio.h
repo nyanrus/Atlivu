@@ -27,13 +27,39 @@ struct CommandID
 {
 	static const int32_t None			= 0;
 	static const int32_t End			= 1;
+
+	/// @param TCHAR filename[TextMaxSize]
+	/// @return int32_t result
 	static const int32_t LoadPlugin		= 2;
+
+	/// @return int32_t result
 	static const int32_t UnloadPlugin	= 3;
+
+	/// @return int32_t result
 	static const int32_t ConfigPlugin	= 4;
+
+	/// @param TCHAR fileName[TextMaxSize]
+	/// @return int32_t mediaHandle
 	static const int32_t OpenMedia		= 5;
+
+	/// @param int32_t mediaHandle
 	static const int32_t CloseMedia		= 6;
+
+	/// @param int32_t mediaHandle
+	/// @return MediaInfo
 	static const int32_t GetMediaInfo	= 7;
+
+	/// @param int32_t mediaHandle
+	/// @param int32_t frameNum
+	/// @return bufferSize
+	/// @return BYTE frameBuffer[bufferSize]
 	static const int32_t ReadVideo		= 8;
+
+	/// @param int32_t mediaHandle
+	/// @param int32_t startSampleNum
+	/// @param int32_t sampleNum
+	/// @return int32_t realSampleNum
+	/// @return BYTE audioBuffer[bufferSize] (bufferSize is calcurated with realSampleNum)
 	static const int32_t ReadAudio		= 9;
 };
 
