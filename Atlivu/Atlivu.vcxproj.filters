@@ -64,5 +64,6 @@
     <None Include="res\Atlivu.rc2">
       <Filter>リソース ファイル</Filter>
     </None>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>
