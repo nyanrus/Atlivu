@@ -2,7 +2,10 @@
 #include "aui.h"
 #include "Plugin.h"
 #include "Common/Tracer2.h"
-#include <boost/interprocess/ipc/message_queue.hpp>
+#include <boost/interprocess/sync/named_semaphore.hpp>
+#include <boost/interprocess/managed_shared_memory.hpp>
+#include <boost/chrono.hpp>
+#include <boost/date_time.hpp>
 
 //--------------------------------------------------------------------
 
@@ -281,19 +284,40 @@ void readAudio()
 BOOL newMainLoop()
 {
 	MY_TRACE(_T("newMainLoop()\n"));
-	boost::interprocess::message_queue mq(boost::interprocess::open_only,"Atlivu_aui");
-	int32_t message;
-	uint32_t receivedSize;
-	uint32_t priority;
+	using namespace boost::interprocess;
+	boost::interprocess::named_semaphore sp(open_only, "semaphore");
+	const void* ptr = nullptr;
+	boost::interprocess::managed_shared_memory shared_mem(open_only, "Name", ptr);
 	
 	while (true) {
-		mq.receive(&message, sizeof(int32_t), receivedSize, priority);
-		using namespace Input;
-		switch (message) {
+		if (sp.timed_wait(boost::posix_time::seconds(1))) {
+			if (!::IsWindow(g_hostWindow)) {
+				MY_TRACE(_T("ホストウィンドウが無効なのでメインループを終了します\n"));
+				return FALSE;
+			}
+		}
+		auto com = shared_mem.find<int32_t>("g/command");
+
+		switch (*com.first) {
 		case CommandID::End:
 			return TRUE;
 		case CommandID::LoadPlugin:
+		{
+			auto filename = shared_mem.find<TCHAR>("input/LoadPlugin/filename");
+
+			MY_TRACE(_T("NRloadPlugin()\n"));
+
+			PluginPtr plugin(new Plugin());
+
+			int32_t result = plugin->load(filename.first);
+			if (result) g_pluginArray.push_back(plugin);
+			MY_TRACE_INT(result);
+			shared_mem.construct<int32_t>("output/LoadPlugin/result")(result);
+
+			MY_TRACE(_T("NRloadPlugin() end\n"));
+			shared_mem.destroy<TCHAR>("input/LoadPlugin/filename");
 			break;
+		}
 		}
 	}
 }
