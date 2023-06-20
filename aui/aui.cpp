@@ -3,6 +3,7 @@
 #include "Plugin.h"
 #include "Common/Tracer2.h"
 #include <boost/interprocess/sync/named_semaphore.hpp>
+#include <boost/interprocess/sync/interprocess_mutex.hpp>
 #include <boost/interprocess/managed_shared_memory.hpp>
 #include <boost/chrono.hpp>
 #include <boost/date_time.hpp>
@@ -288,37 +289,140 @@ BOOL newMainLoop()
 	boost::interprocess::named_semaphore sp(open_only, "semaphore");
 	const void* ptr = nullptr;
 	boost::interprocess::managed_shared_memory shared_mem(open_only, "Name", ptr);
+	auto mutex = shared_mem.find<boost::interprocess::interprocess_mutex>("g/mutex");
+	auto com = shared_mem.find<int32_t>("g/command");
 	
 	while (true) {
-		if (sp.timed_wait(boost::posix_time::seconds(1))) {
+		if (!mutex.first->timed_lock(boost::posix_time::seconds(1))) {
 			if (!::IsWindow(g_hostWindow)) {
 				MY_TRACE(_T("ホストウィンドウが無効なのでメインループを終了します\n"));
 				return FALSE;
 			}
+			continue;
 		}
-		auto com = shared_mem.find<int32_t>("g/command");
 
-		switch (*com.first) {
+		switch (*com.first) { 
 		case CommandID::End:
 			return TRUE;
 		case CommandID::LoadPlugin:
 		{
-			auto filename = shared_mem.find<TCHAR>("input/LoadPlugin/filename");
-
 			MY_TRACE(_T("NRloadPlugin()\n"));
+			auto fileName = shared_mem.find<TCHAR>("in/LoadPlugin/fileName");
 
 			PluginPtr plugin(new Plugin());
 
-			int32_t result = plugin->load(filename.first);
+			int32_t result = plugin->load(fileName.first);
 			if (result) g_pluginArray.push_back(plugin);
 			MY_TRACE_INT(result);
-			shared_mem.construct<int32_t>("output/LoadPlugin/result")(result);
+			shared_mem.construct<int32_t>("out/LoadPlugin/result")(result);
 
 			MY_TRACE(_T("NRloadPlugin() end\n"));
-			shared_mem.destroy<TCHAR>("input/LoadPlugin/filename");
+			shared_mem.destroy<TCHAR>("in/LoadPlugin/fileName");
 			break;
 		}
+		case CommandID::UnloadPlugin:
+		{
+			MY_TRACE(_T("NRunloadPlugin()\n"));
+
+			for (auto& a : g_mediaMap)
+				a.second->close();
+
+			for (auto& plugin : g_pluginArray)
+				plugin->unload();
+
+			g_mediaMap.clear();
+			g_pluginArray.clear();
+
+			int32_t result = TRUE;
+			shared_mem.construct<int32_t>("out/UnloadPlugin/result")(result);
+
+			MY_TRACE(_T("NRunloadPlugin() end\n"));
+			break;
 		}
+		case CommandID::ConfigPlugin:
+		{
+			break;
+		}
+		case CommandID::OpenMedia:
+		{
+			MY_TRACE(_T("NRopenMedia()\n"));
+			auto fileName = shared_mem.find<TCHAR>("in/OpenMedia/fileName");
+			int32_t result = 0;
+
+			for (auto& plugin : g_pluginArray)
+			{
+				// メディアを作成する。
+				MediaPtr media(new Media());
+
+				// メディアファイルを開く。
+				if (!media->open(plugin, fileName.first))
+					continue;
+
+				// メディアマップに追加する。
+				addMedia(media);
+
+				// サーバーに結果 (メディアのポインタ) を書き込む。
+				result = (int32_t)media.get();
+			}
+
+			shared_mem.construct<int32_t>("out/OpenMedia/result")(result);
+			if (result) 
+			{
+				MY_TRACE(_T("NRopenMedia() succeeded\n"));
+			}
+			else 
+			{
+				MY_TRACE(_T("NRopenMedia() failed\n"));
+			}
+			shared_mem.destroy<TCHAR>("in/OpenMedia/fileName");
+			break;
+		}
+		case CommandID::CloseMedia:
+		{
+			MY_TRACE(_T("NRcloseMedia()\n"));
+
+			auto mediaPointer = shared_mem.find<int32_t>("in/CloseMedia/mediaPointer");
+
+			// ポインタから共有ポインタを取得する。
+			MediaPtr media = getMedia(reinterpret_cast<Media*>(*mediaPointer.first));
+
+			if (!media)
+			{
+				int32_t result = FALSE;
+				
+				shared_mem.construct<int32_t>("out/CloseMedia/result")(result);
+				shared_mem.destroy<int32_t>("in/CloseMedia/mediaPointer");
+
+				MY_TRACE(_T("NRcloseMedia() failed\n"));
+
+				return;
+			}
+
+			// メディアファイルを閉じる。
+			if (!media->close())
+			{
+				int32_t result = FALSE;
+				shared_mem.construct<int32_t>("out/CloseMedia/result")(result);
+
+				MY_TRACE(_T("NRcloseMedia() failed\n"));
+			}
+			else 
+			{
+				// メディアマップから削除する。
+				eraseMedia(reinterpret_cast<Media*>(*mediaPointer.first));
+
+				int32_t result = TRUE;
+				shared_mem.construct<int32_t>("out/CloseMedia/result")(result);
+
+				MY_TRACE(_T("NRcloseMedia() succeeded\n"));
+			}
+			shared_mem.destroy<int32_t>("in/CloseMedia/mediaPointer");
+			break;
+		}
+		
+		}
+		*com.first = -1;
+		mutex.first->unlock();
 	}
 }
 

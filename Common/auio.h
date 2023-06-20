@@ -43,6 +43,7 @@ struct CommandID
 	static const int32_t OpenMedia		= 5;
 
 	/// @param int32_t mediaHandle
+	/// @return int32_t result
 	static const int32_t CloseMedia		= 6;
 
 	/// @param int32_t mediaHandle
