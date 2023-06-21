@@ -301,12 +301,17 @@ BOOL newMainLoop()
 			continue;
 		}
 
+		if (shared_mem.get_free_memory() <= 1024) {
+			shared_mem.grow("Name", 1024);
+		}
+
 		switch (*com.first) { 
 		case CommandID::End:
 			return TRUE;
 		case CommandID::LoadPlugin:
 		{
 			MY_TRACE(_T("NRloadPlugin()\n"));
+			//引数読み込み
 			auto fileName = shared_mem.find<TCHAR>("in/LoadPlugin/fileName");
 
 			PluginPtr plugin(new Plugin());
@@ -314,10 +319,12 @@ BOOL newMainLoop()
 			int32_t result = plugin->load(fileName.first);
 			if (result) g_pluginArray.push_back(plugin);
 			MY_TRACE_INT(result);
+			//返す
 			shared_mem.construct<int32_t>("out/LoadPlugin/result")(result);
 
 			MY_TRACE(_T("NRloadPlugin() end\n"));
-			shared_mem.destroy<TCHAR>("in/LoadPlugin/fileName");
+			//引数開放
+			shared_mem.destroy_ptr(fileName.first);
 			break;
 		}
 		case CommandID::UnloadPlugin:
@@ -374,7 +381,7 @@ BOOL newMainLoop()
 			{
 				MY_TRACE(_T("NRopenMedia() failed\n"));
 			}
-			shared_mem.destroy<TCHAR>("in/OpenMedia/fileName");
+			shared_mem.destroy_ptr(fileName.first);
 			break;
 		}
 		case CommandID::CloseMedia:
@@ -391,11 +398,11 @@ BOOL newMainLoop()
 				int32_t result = FALSE;
 				
 				shared_mem.construct<int32_t>("out/CloseMedia/result")(result);
-				shared_mem.destroy<int32_t>("in/CloseMedia/mediaPointer");
+				shared_mem.destroy_ptr(mediaPointer.first);
 
 				MY_TRACE(_T("NRcloseMedia() failed\n"));
 
-				return;
+				break;
 			}
 
 			// メディアファイルを閉じる。
@@ -416,8 +423,68 @@ BOOL newMainLoop()
 
 				MY_TRACE(_T("NRcloseMedia() succeeded\n"));
 			}
-			shared_mem.destroy<int32_t>("in/CloseMedia/mediaPointer");
+			shared_mem.destroy_ptr(mediaPointer.first);
 			break;
+		}
+		case CommandID::GetMediaInfo:
+		{
+			MY_TRACE(_T("NRgetMediaInfo()\n"));
+
+			// サーバーからメディアのポインタを読み込む。
+			auto mediaPointer = shared_mem.find<int32_t>("in/GetMediaInfo/mediaPointer");
+
+			// ポインタから共有ポインタを取得する。
+			MediaPtr media = getMedia(reinterpret_cast<Media*>(*mediaPointer.first));
+
+			if (!media)
+			{
+				MediaInfo result = {};
+				shared_mem.construct<MediaInfo>("out/GetMediaInfo/mediaInfo")(result);
+
+				MY_TRACE(_T("NRgetMediaInfo() failed\n"));
+			} else {
+				MediaInfo* mediaInfo = media->getMediaInfo();
+				shared_mem.construct<MediaInfo>("out/GetMediaInfo/mediaInfo")(mediaInfo);
+
+				MY_TRACE(_T("NRgetMediaInfo() succeeded\n"));
+			}	
+			shared_mem.destroy_ptr(mediaPointer.first);
+		}
+		case CommandID::ReadVideo:
+		{
+			MY_TRACE(_T("readVideo()\n"));
+
+			// サーバーからメディアのポインタを読み込む。
+			auto mediaPointer = shared_mem.find<int32_t>("in/ReadVideo/mediaPointer");
+			MY_TRACE_HEX(reinterpret_cast<Media*>(*mediaPointer.first));
+
+			auto frame = shared_mem.find<int32_t>("in/ReadVideo/frame");
+			MY_TRACE_INT(frame);
+
+			// ポインタから共有ポインタを取得する。
+			MediaPtr media = getMedia(reinterpret_cast<Media*>(*mediaPointer.first));
+
+			if (!media)
+			{
+				int32_t bufferSize = 0;
+				shared_mem.construct<int32_t>("out/ReadVideo/bufferSize")(bufferSize);
+
+				MY_TRACE(_T("NRreadVideo() failed\n"));
+			}
+			else {
+				int32_t bufferSize = 0;
+				void* buffer = media->readVideo(*frame.first, &bufferSize);
+				shared_mem.construct<int32_t>("out/ReadVideo/bufferSize")(bufferSize);
+
+				if (bufferSize > 0) {
+					shared_mem.grow("Name",(ceilf(static_cast<float>(bufferSize - shared_mem.get_free_memory()) / 1024.f) + 1));
+					shared_mem.construct<BYTE>("out/ReadVideo/buffer")[bufferSize](buffer); 
+				}
+
+				MY_TRACE(_T("NRreadVideo() succeeded\n"));
+			}
+			shared_mem.destroy_ptr(mediaPointer.first);
+			shared_mem.destroy_ptr(frame.first);
 		}
 		
 		}
