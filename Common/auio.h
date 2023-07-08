@@ -6,88 +6,121 @@ static const int32_t TextMaxSize = 1024;
 
 //--------------------------------------------------------------------
 
-struct MediaInfo
-{
-	int32_t				flag;				//	ƒtƒ‰ƒO
-	int32_t				rate,scale;			//	ƒtƒŒ[ƒ€ƒŒ[ƒg
-	int32_t				n;					//	ƒtƒŒ[ƒ€”
-	BITMAPINFOHEADER	format;				//	‰æ‘œƒtƒH[ƒ}ƒbƒg‚Ö‚Ìƒ|ƒCƒ“ƒ^(Ÿ‚ÉŠÖ”‚ªŒÄ‚Î‚ê‚é‚Ü‚Å“à—e‚ğ—LŒø‚É‚µ‚Ä‚¨‚­)
-	int32_t				format_size;		//	‰æ‘œƒtƒH[ƒ}ƒbƒg‚ÌƒTƒCƒY
-	int32_t				audio_n;			//	‰¹ºƒTƒ“ƒvƒ‹”
-	WAVEFORMATEX		audio_format;		//	‰¹ºƒtƒH[ƒ}ƒbƒg‚Ö‚Ìƒ|ƒCƒ“ƒ^(Ÿ‚ÉŠÖ”‚ªŒÄ‚Î‚ê‚é‚Ü‚Å“à—e‚ğ—LŒø‚É‚µ‚Ä‚¨‚­)
-	int32_t				audio_format_size;	//	‰¹ºƒtƒH[ƒ}ƒbƒg‚ÌƒTƒCƒY
-	DWORD				handler;			//	‰æ‘œcodecƒnƒ“ƒhƒ‰
+struct MediaInfo {
+  int32_t flag;         //	ãƒ•ãƒ©ã‚°
+  int32_t rate, scale;  //	ãƒ•ãƒ¬ãƒ¼ãƒ ãƒ¬ãƒ¼ãƒˆ
+  int32_t n;            //	ãƒ•ãƒ¬ãƒ¼ãƒ æ•°
+  BITMAPINFOHEADER
+      format;  //	ç”»åƒãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆã¸ã®ãƒã‚¤ãƒ³ã‚¿(æ¬¡ã«é–¢æ•°ãŒå‘¼ã°ã‚Œã‚‹ã¾ã§å†…å®¹ã‚’æœ‰åŠ¹ã«ã—ã¦ãŠã)
+  int32_t format_size;  //	ç”»åƒãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆã®ã‚µã‚¤ã‚º
+  int32_t audio_n;      //	éŸ³å£°ã‚µãƒ³ãƒ—ãƒ«æ•°
+  WAVEFORMATEX
+      audio_format;  //	éŸ³å£°ãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆã¸ã®ãƒã‚¤ãƒ³ã‚¿(æ¬¡ã«é–¢æ•°ãŒå‘¼ã°ã‚Œã‚‹ã¾ã§å†…å®¹ã‚’æœ‰åŠ¹ã«ã—ã¦ãŠã)
+  int32_t audio_format_size;  //	éŸ³å£°ãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆã®ã‚µã‚¤ã‚º
+  DWORD handler;              //	ç”»åƒcodecãƒãƒ³ãƒ‰ãƒ©
 };
+
+#include <boost/chrono.hpp>
+#include <boost/date_time.hpp>
+#include <boost/format.hpp>
+#include <boost/interprocess/allocators/allocator.hpp>
+#include <boost/interprocess/containers/vector.hpp>
+#include <boost/interprocess/managed_shared_memory.hpp>
+#include <boost/interprocess/sync/interprocess_mutex.hpp>
+namespace bip = boost::interprocess;
+
+//https://stackoverflow.com/questions/18533527/boostinterprocess-shared-memory-between-32-and-64-bit-processes
+using IPC_managed_shared_memory = bip::basic_managed_shared_memory
+<
+    char, 
+    bip::rbtree_best_fit<
+        bip::mutex_family,
+        bip::offset_ptr<void,int64_t,uint64_t,0>
+    >, 
+    bip::iset_index
+>;
+
+
+template <typename T>
+using ShmemAlloc =
+    bip::allocator<T, IPC_managed_shared_memory::segment_manager>;
+template <typename T>
+using Vec = bip::vector<T, ShmemAlloc<T>>;
 
 //--------------------------------------------------------------------
 namespace Input {
 //--------------------------------------------------------------------
 
-struct CommandID
-{
-	static const int32_t None			= 0;
-	static const int32_t End			= 1;
+struct Command {
+  enum COM {
+    None,
+    End,
 
-	/// @param TCHAR filename[TextMaxSize]
-	/// @return int32_t result
-	static const int32_t LoadPlugin		= 2;
+    /// @param TCHAR filename[TextMaxSize]
+    /// @return int32_t result
+    LoadPlugin,
 
-	/// @return int32_t result
-	static const int32_t UnloadPlugin	= 3;
+    /// @return int32_t result
+    UnloadPlugin,
 
-	/// @return int32_t result
-	static const int32_t ConfigPlugin	= 4;
+    /// @return int32_t result
+    ConfigPlugin,
 
-	/// @param TCHAR fileName[TextMaxSize]
-	/// @return int32_t mediaHandle
-	static const int32_t OpenMedia		= 5;
+    /// @param TCHAR fileName[TextMaxSize]
+    /// @return int32_t mediaHandle
+    OpenMedia,
 
-	/// @param int32_t mediaHandle
-	/// @return int32_t result
-	static const int32_t CloseMedia		= 6;
+    /// @param int32_t mediaHandle
+    /// @return int32_t result
+    CloseMedia,
 
-	/// @param int32_t mediaHandle
-	/// @return MediaInfo
-	static const int32_t GetMediaInfo	= 7;
+    /// @param int32_t mediaHandle
+    /// @return MediaInfo mediaInfo
+    GetMediaInfo,
 
-	/// @param int32_t mediaHandle
-	/// @param int32_t frameNum
-	/// @return bufferSize
-	/// @return BYTE frameBuffer[bufferSize]
-	static const int32_t ReadVideo		= 8;
+    /// @param int32_t mediaHandle
+    /// @param int32_t frameNum
+    /// @return bufferSize
+    /// @return BYTE frameBuffer[bufferSize]
+    ReadVideo,
 
-	/// @param int32_t mediaHandle
-	/// @param int32_t startSampleNum
-	/// @param int32_t sampleNum
-	/// @return int32_t realSampleNum
-	/// @return BYTE audioBuffer[bufferSize] (bufferSize is calcurated with realSampleNum)
-	static const int32_t ReadAudio		= 9;
+    /// @param int32_t mediaHandle
+    /// @param int32_t startSampleNum
+    /// @param int32_t sampleNum
+    /// @return int32_t realSampleNum
+    /// @return BYTE audioBuffer[bufferSize] (bufferSize is calcurated with
+    /// realSampleNum)
+    ReadAudio,
+  } com;
+
+  boost::interprocess::interprocess_mutex mutex;
+
+  Command() :  com(COM::None), mutex(bip::interprocess_mutex()) {}
 };
 
 //--------------------------------------------------------------------
-} // namespace Input
+}  // namespace Input
 //--------------------------------------------------------------------
 
 //--------------------------------------------------------------------
 namespace Output {
 //--------------------------------------------------------------------
 
-struct CommandID
-{
-	static const int32_t None			= WM_APP + 100;
-	static const int32_t End			= WM_APP + 101;
-	static const int32_t LoadPlugin		= WM_APP + 102;
-	static const int32_t UnloadPlugin	= WM_APP + 103;
-	static const int32_t ConfigPlugin	= WM_APP + 104;
-	static const int32_t SaveFile		= WM_APP + 105;
+struct CommandID {
+  static const int32_t None = WM_APP + 100;
+  static const int32_t End = WM_APP + 101;
+  static const int32_t LoadPlugin = WM_APP + 102;
+  static const int32_t UnloadPlugin = WM_APP + 103;
+  static const int32_t ConfigPlugin = WM_APP + 104;
+  static const int32_t SaveFile = WM_APP + 105;
 
-	static const int32_t IsAbort		= WM_APP + 110;
-	static const int32_t RestTimeDisp	= WM_APP + 111;
-	static const int32_t UpdatePreview	= WM_APP + 112;
-	static const int32_t GetVideo		= WM_APP + 113;
-	static const int32_t GetAudio		= WM_APP + 114;
+  static const int32_t IsAbort = WM_APP + 110;
+  static const int32_t RestTimeDisp = WM_APP + 111;
+  static const int32_t UpdatePreview = WM_APP + 112;
+  static const int32_t GetVideo = WM_APP + 113;
+  static const int32_t GetAudio = WM_APP + 114;
 };
 
 //--------------------------------------------------------------------
-} // namespace Output
+}  // namespace Output
 //--------------------------------------------------------------------

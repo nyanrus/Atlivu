@@ -30,24 +30,34 @@ CAtlivuApp::~CAtlivuApp()
 {
 }
 
+
+namespace bip = boost::interprocess;
 BOOL CAtlivuApp::createInputProcess()
 {
 	MY_TRACE(_T("CAtlivuApp::createInputProcess()\n"));
 
-	DWORD tid = ::GetCurrentThreadId();
-	MY_TRACE_INT(tid);
+	//DWORD tid = ::GetCurrentThreadId();
+	//MY_TRACE_INT(tid);
 
-	TCHAR pipeName[MAX_PATH] = {};
-	::StringCbPrintf(pipeName, sizeof(pipeName), _T("\\\\.\\pipe\\aui%d"), tid);
-	MY_TRACE_TSTR(pipeName);
+	//TCHAR pipeName[MAX_PATH] = {};
+	//::StringCbPrintf(pipeName, sizeof(pipeName), _T("\\\\.\\pipe\\aui%d"), tid);
+	//MY_TRACE_TSTR(pipeName);
 
-	m_inputPipe = ::CreateNamedPipe(pipeName, PIPE_ACCESS_DUPLEX, PIPE_TYPE_BYTE | PIPE_WAIT, 1, 0, 0, 1000, 0);
-	MY_TRACE_HEX(m_inputPipe);
+	//m_inputPipe = ::CreateNamedPipe(pipeName, PIPE_ACCESS_DUPLEX, PIPE_TYPE_BYTE | PIPE_WAIT, 1, 0, 0, 1000, 0);
+	//MY_TRACE_HEX(m_inputPipe);
 
-	DWORD dwMode = PIPE_READMODE_BYTE;
-	BOOL fSuccess = ::SetNamedPipeHandleState(m_inputPipe, &dwMode, NULL, NULL);
-	MY_TRACE_HEX(dwMode);
-	MY_TRACE_INT(fSuccess);
+	//DWORD dwMode = PIPE_READMODE_BYTE;
+	//BOOL fSuccess = ::SetNamedPipeHandleState(m_inputPipe, &dwMode, NULL, NULL);
+	//MY_TRACE_HEX(dwMode);
+	//MY_TRACE_INT(fSuccess);
+
+
+	bip::shared_memory_object::remove("atlivu_ipc_input");
+
+	this->m_inputSharedMem = IPC_managed_shared_memory(bip::create_only, "atlivu_ipc_input", 1024);
+
+
+	this->m_inputSharedMem.construct<Input::Command>("g/command")();
 
 	TCHAR path[MAX_PATH] = {};
 	::GetModuleFileName(0, path, MAX_PATH);
@@ -100,6 +110,9 @@ BOOL CAtlivuApp::createOutputProcess()
 	MY_TRACE_HEX(dwMode);
 	MY_TRACE_INT(fSuccess);
 
+	
+	
+
 	TCHAR path[MAX_PATH] = {};
 	::GetModuleFileName(0, path, MAX_PATH);
 	::PathRemoveFileSpec(path);
@@ -136,33 +149,34 @@ BOOL CAtlivuApp::initInputPlugin()
 {
 	MY_TRACE(_T("CAtlivuApp::initInputPlugin()\n"));
 
-	{
-		// パイプの接続を確認する。
+	//{
+	//	// パイプの接続を確認する。
 
-		BOOL result = ::ConnectNamedPipe(m_inputPipe, 0);
-		MY_TRACE_INT(result);
-		if (!result)
-		{
-			DWORD error = ::GetLastError();
-			MY_TRACE_HEX(error);
-			if (error == ERROR_PIPE_CONNECTED)
-			{
-				MY_TRACE(_T("パイプの接続は成功しています\n"));
-			}
-		}
-	}
+	//	BOOL result = ::ConnectNamedPipe(m_inputPipe, 0);
+	//	MY_TRACE_INT(result);
+	//	if (!result)
+	//	{
+	//		DWORD error = ::GetLastError();
+	//		MY_TRACE_HEX(error);
+	//		if (error == ERROR_PIPE_CONNECTED)
+	//		{
+	//			MY_TRACE(_T("パイプの接続は成功しています\n"));
+	//		}
+	//	}
+	//}
 
 	CString iniPath = getIniPath();
 
 	{
 		TCHAR fileName[MAX_PATH] = {};
 		::GetPrivateProfileString(_T("config"), _T("inputPlugin"), _T(""), fileName, MAX_PATH, iniPath);
-
+		MY_TRACE(_T("CAtlivuApp::initInputPlugin() raw_loadInputPlugin\n"));
 		if (raw_loadInputPlugin(fileName))
 		{
 			TCHAR fileName[MAX_PATH] = {};
 			::GetPrivateProfileString(_T("config"), _T("media"), _T(""), fileName, MAX_PATH, iniPath);
 
+			MY_TRACE(_T("CAtlivuApp::initInputPlugin() openMedia()\n"));
 			openMedia(fileName);
 		}
 	}

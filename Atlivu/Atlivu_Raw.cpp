@@ -1,74 +1,204 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "Atlivu.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
+
 //--------------------------------------------------------------------
 
 BOOL CAtlivuApp::raw_loadInputPlugin(LPCTSTR fileName)
 {
-	::PostThreadMessage(m_inputPi.dwThreadId, Input::CommandID::LoadPlugin, 0, 0);
+	auto& shared_mem = this->m_inputSharedMem;
+	
+	auto [com,_mm] = shared_mem.find<Input::Command>("g/command");
 
-	TCHAR fileNameBuffer[TextMaxSize] = {};
-	::StringCbCopy(fileNameBuffer, sizeof(fileNameBuffer), fileName);
-	writeFile(m_inputPipe, fileNameBuffer, sizeof(fileNameBuffer));
+	{
+		// in/out param document is in CommandID source.
+		bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
 
-	int32_t result = FALSE;
-	readFile(m_inputPipe, &result, sizeof(result));
-	return result;
+		com->com = Input::Command::COM::LoadPlugin;
+		std::wstring file_name(&fileName[0]);
+		auto vec_char = shared_mem.construct<Vec<TCHAR>>("in/LoadPlugin/fileName")(file_name.size(), shared_mem.get_segment_manager());
+		std::copy(file_name.begin(), file_name.end(), vec_char->begin());
+	}
+
+	
+	while (true) {
+		{
+			bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+			if (com->com == Input::Command::COM::None) {
+				break;
+			}
+		}
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+	bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+	
+	auto [result,_] = shared_mem.find<int32_t>("out/LoadPlugin/result");
+	auto res = *result;
+	shared_mem.destroy_ptr(result);
+
+	return res;
 }
 
 BOOL CAtlivuApp::raw_unloadInputPlugin()
 {
-	::PostThreadMessage(m_inputPi.dwThreadId, Input::CommandID::UnloadPlugin, 0, 0);
+	auto& shared_mem = this->m_inputSharedMem;
 
-	int32_t result = FALSE;
-	readFile(m_inputPipe, &result, sizeof(result));
-	return result;
+	auto [com, _mm] = shared_mem.find<Input::Command>("g/command");
+
+	{
+		// in/out param document is in CommandID source.
+		bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+		com->com = Input::Command::COM::UnloadPlugin;
+	}
+	
+	while (true) {
+		{
+			bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+			if (com->com == Input::Command::COM::None) {
+				break;
+			}
+		}
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+	bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+
+	auto [result, _] = shared_mem.find<int32_t>("out/UnloadPlugin/result");
+	auto res = *result;
+	shared_mem.destroy_ptr(result);
+
+	return res;
 }
 
+//! NOT IMPLEMENTED IN AUI
 BOOL CAtlivuApp::raw_configInputPlugin()
 {
-	::PostThreadMessage(m_inputPi.dwThreadId, Input::CommandID::ConfigPlugin, 0, 0);
+	auto& shared_mem = this->m_inputSharedMem;
 
-	int32_t result = FALSE;
-	readFile(m_inputPipe, &result, sizeof(result));
-	return result;
+	auto [com, _mm] = shared_mem.find<Input::Command>("g/command");
+
+	{
+		// in/out param document is in CommandID source.
+		bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+		com->com = Input::Command::COM::ConfigPlugin;
+	}
+
+	while (true) {
+		{
+			bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+			if (com->com == Input::Command::COM::None) {
+				break;
+			}
+		}
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+	bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+
+	auto [result, _] = shared_mem.find<int32_t>("out/ConfigPlugin/result");
+	auto res = *result;
+	shared_mem.destroy_ptr(result);
+
+	return res;
 }
 
 int32_t CAtlivuApp::raw_openMedia(LPCTSTR fileName)
 {
-	::PostThreadMessage(m_inputPi.dwThreadId, Input::CommandID::OpenMedia, 0, 0);
+	auto& shared_mem = this->m_inputSharedMem;
 
-	TCHAR fileNameBuffer[TextMaxSize] = {};
-	::StringCbCopy(fileNameBuffer, sizeof(fileNameBuffer), fileName);
-	writeFile(m_inputPipe, fileNameBuffer, sizeof(fileNameBuffer));
+	auto [com, _mm] = shared_mem.find<Input::Command>("g/command");
 
-	int32_t result = FALSE;
-	readFile(m_inputPipe, &result, sizeof(result));
-	return result;
+	{
+		// in/out param document is in CommandID source.
+		bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+		com->com = Input::Command::COM::OpenMedia;
+
+		std::wstring file_name(&fileName[0]);
+		auto vec_char = shared_mem.construct<Vec<TCHAR>>("in/OpenMedia/fileName")(file_name.size(), shared_mem.get_segment_manager());
+		std::copy(file_name.begin(), file_name.end(), vec_char->begin());
+	}
+
+	while (true) {
+		{
+			bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+			if (com->com == Input::Command::COM::None) {
+				break;
+			}
+		}
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+	bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+
+	auto [mediaHandle, _] = shared_mem.find<int32_t>("out/OpenMedia/result");
+	auto mHandle = *mediaHandle;
+	shared_mem.destroy_ptr(mediaHandle);
+
+	return mHandle;
 }
 
 BOOL CAtlivuApp::raw_closeMedia(int32_t media)
 {
-	::PostThreadMessage(m_inputPi.dwThreadId, Input::CommandID::CloseMedia, 0, 0);
+	auto& shared_mem = this->m_inputSharedMem;
 
-	writeFile(m_inputPipe, &media, sizeof(media));
+	auto [com, _mm] = shared_mem.find<Input::Command>("g/command");
 
-	int32_t result = FALSE;
-	readFile(m_inputPipe, &result, sizeof(result));
-	return result;
+	{
+		// in/out param document is in CommandID source.
+		bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+		com->com = Input::Command::COM::CloseMedia;
+
+		shared_mem.construct<int32_t>("in/CloseMedia/mediaHandle")(media);
+	}
+
+	while (true) {
+		{
+			bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+			if (com->com == Input::Command::COM::None) {
+				break;
+			}
+		}
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+	bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+
+	auto [result, _] = shared_mem.find<int32_t>("out/CloseMedia/result");
+	auto ret = *result;
+	shared_mem.destroy_ptr(result);
+
+	return ret;
 }
 
 BOOL CAtlivuApp::raw_getMediaInfo(int32_t media, MediaInfo* mediaInfo)
 {
-	::PostThreadMessage(m_inputPi.dwThreadId, Input::CommandID::GetMediaInfo, 0, 0);
+	auto& shared_mem = this->m_inputSharedMem;
 
-	writeFile(m_inputPipe, &media, sizeof(media));
+	auto [com, _mm] = shared_mem.find<Input::Command>("g/command");
 
-	readFile(m_inputPipe, mediaInfo, sizeof(*mediaInfo));
+	{
+		// in/out param document is in CommandID source.
+		bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+		com->com = Input::Command::COM::GetMediaInfo;
+
+		shared_mem.construct<int32_t>("in/GetMediaInfo/mediaHandle")(media);
+	}
+
+	while (true) {
+		{
+			bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+			if (com->com == Input::Command::COM::None) {
+				break;
+			}
+		}
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+	bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+	
+	auto [med,_] = shared_mem.find<MediaInfo>("out/GetMediaInfo/mediaInfo");
+
+	*mediaInfo = *med;
+	shared_mem.destroy_ptr(med);
 
 	return TRUE;
 }
@@ -77,19 +207,43 @@ BOOL CAtlivuApp::raw_readVideo(int32_t media, int32_t frame, std::vector<BYTE>& 
 {
 	CSingleLock lock(&m_csMedia, TRUE);
 
-	::PostThreadMessage(m_inputPi.dwThreadId, Input::CommandID::ReadVideo, 0, 0);
+	auto& shared_mem = this->m_inputSharedMem;
 
-	writeFile(m_inputPipe, &media, sizeof(media));
-	writeFile(m_inputPipe, &frame, sizeof(frame));
+	auto [com, _mm] = shared_mem.find<Input::Command>("g/command");
 
-	int32_t bufferSize = 0;
-	readFile(m_inputPipe, &bufferSize, sizeof(bufferSize));
-
-	if (bufferSize > 0)
 	{
-		output.resize(bufferSize);
-		readFile(m_inputPipe, output.data(), bufferSize);
+		// in/out param document is in CommandID source.
+		bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+		com->com = Input::Command::COM::ReadVideo;
+
+		shared_mem.construct<int32_t>("in/ReadVideo/mediaHandle")(media);
+		shared_mem.construct<int32_t>("in/ReadVideo/frameNum")(frame);
+
 	}
+
+	while (true) {
+		{
+			bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+			if (com->com == Input::Command::COM::None) {
+				break;
+			}
+		}
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+	bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+
+	auto [bufSize, _] = shared_mem.find<int32_t>("out/ReadVideo/bufferSize");
+	
+
+	if (0 < *bufSize) {
+		auto [buf, _] = shared_mem.find<Vec<BYTE>>("out/ReadVideo/buffer");
+		output.resize(buf->size());
+		std::copy(buf->begin(), buf->end(), output.data());
+		shared_mem.destroy_ptr(buf);
+	}
+
+	shared_mem.destroy_ptr(bufSize);
+	
 
 	return TRUE;
 }
@@ -98,24 +252,45 @@ BOOL CAtlivuApp::raw_readAudio(int32_t media, int32_t start, int32_t length, int
 {
 	CSingleLock lock(&m_csMedia, TRUE);
 
-	::PostThreadMessage(m_inputPi.dwThreadId, Input::CommandID::ReadAudio, 0, 0);
+	auto& shared_mem = this->m_inputSharedMem;
 
-	writeFile(m_inputPipe, &media, sizeof(media));
-	writeFile(m_inputPipe, &start, sizeof(start));
-	writeFile(m_inputPipe, &length, sizeof(length));
+	auto [com, _mm] = shared_mem.find<Input::Command>("g/command");
 
-	readFile(m_inputPipe, bufferLength, sizeof(*bufferLength));
-
-	if (*bufferLength > 0)
 	{
-		int32_t bitsPerSample = m_mediaInfo.audio_format.wBitsPerSample;
-		int32_t channelCount = m_mediaInfo.audio_format.nChannels;
-		int32_t bufferSize = bitsPerSample / 8 * channelCount * *bufferLength;
-		MY_TRACE_INT(bufferSize);
+		// in/out param document is in CommandID source.
+		bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+		com->com = Input::Command::COM::ReadAudio;
 
-		output.resize(bufferSize);
-		readFile(m_inputPipe, output.data(), bufferSize);
+		shared_mem.construct<int32_t>("in/ReadAudio/mediaHandle")(media);
+		shared_mem.construct<int32_t>("in/ReadVideo/startSampleNum")(start);
+		shared_mem.construct<int32_t>("in/ReadVideo/sampleNum")(length);
+
 	}
+
+	while (true) {
+		{
+			bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+			if (com->com == Input::Command::COM::None) {
+				break;
+			}
+		}
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
+	bip::scoped_lock<bip::interprocess_mutex> scoped_lock(com->mutex);
+
+	auto [bufSize, _] = shared_mem.find<int32_t>("out/ReadAudio/realSampleNum");
+
+
+	if (0 < *bufSize) {
+		auto [buf, _] = shared_mem.find<Vec<BYTE>>("out/ReadAudio/audioBuffer");
+
+		*bufferLength = buf->size();
+
+		output.resize(buf->size());
+		std::copy(buf->begin(), buf->end(), output.data());
+		shared_mem.destroy_ptr(buf);
+	}
+	shared_mem.destroy_ptr(bufSize);
 
 	return TRUE;
 }

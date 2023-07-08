@@ -93,11 +93,11 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level2</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_WINDOWS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>../../</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -125,7 +125,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>../../</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -155,7 +155,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>../../</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -187,7 +187,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_WINDOWS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>../../</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -250,22 +250,18 @@
     <None Include="packages.config" />
     <None Include="res\Atlivu.rc2" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\aui\aui.vcxproj">
-      <Project>{426e4a60-3789-4643-bb0c-e79ac1aff6da}</Project>
-    </ProjectReference>
-    <ProjectReference Include="..\auo\auo.vcxproj">
-      <Project>{e4408041-d01b-4b40-96ba-14dd23919856}</Project>
-    </ProjectReference>
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\packages\boost.1.82.0\build\boost.targets" Condition="Exists('..\packages\boost.1.82.0\build\boost.targets')" />
+    <Import Project="..\packages\boost_chrono-vc143.1.82.0\build\boost_chrono-vc143.targets" Condition="Exists('..\packages\boost_chrono-vc143.1.82.0\build\boost_chrono-vc143.targets')" />
+    <Import Project="..\packages\boost_date_time-vc143.1.82.0\build\boost_date_time-vc143.targets" Condition="Exists('..\packages\boost_date_time-vc143.1.82.0\build\boost_date_time-vc143.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>このプロジェクトは、このコンピューター上にない NuGet パッケージを参照しています。それらのパッケージをダウンロードするには、[NuGet パッケージの復元] を使用します。詳細については、http://go.microsoft.com/fwlink/?LinkID=322105 を参照してください。見つからないファイルは {0} です。</ErrorText>
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\boost.1.82.0\build\boost.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost.1.82.0\build\boost.targets'))" />
+    <Error Condition="!Exists('..\packages\boost_chrono-vc143.1.82.0\build\boost_chrono-vc143.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_chrono-vc143.1.82.0\build\boost_chrono-vc143.targets'))" />
+    <Error Condition="!Exists('..\packages\boost_date_time-vc143.1.82.0\build\boost_date_time-vc143.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\boost_date_time-vc143.1.82.0\build\boost_date_time-vc143.targets'))" />
   </Target>
 </Project>

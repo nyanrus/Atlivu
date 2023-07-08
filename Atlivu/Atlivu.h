@@ -4,6 +4,8 @@
 #include "MainFrame.h"
 #include "VideoProcessor.h"
 
+#include <boost/interprocess/managed_shared_memory.hpp>
+
 //--------------------------------------------------------------------
 
 static const UINT WM_VIDEO_PROCESS_SEEK			= WM_APP + 120;
@@ -22,7 +24,9 @@ typedef std::vector<CVideoProcessorPtr> CVideoProcessorArray;
 class CAtlivuApp : public CWinApp
 {
 public:
-
+	//start nr
+	boost::interprocess::managed_shared_memory m_inputSharedMem;
+	//end   nr
 	GdiplusStartupInput m_gdiSI;
 	GdiplusStartupOutput m_gdiSO;
 	ULONG_PTR m_gdiToken = 0;

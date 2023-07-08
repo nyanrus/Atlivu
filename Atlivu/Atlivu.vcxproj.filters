@@ -37,9 +37,9 @@
     <ClCompile Include="VideoProcessor.cpp" />
     <ClCompile Include="VideoProcessorWindow.cpp" />
     <ClCompile Include="Atlivu_Audio.cpp" />
-    <ClCompile Include="Atlivu_Raw.cpp" />
     <ClCompile Include="Atlivu_Video.cpp" />
     <ClCompile Include="Atlivu_Save.cpp" />
+    <ClCompile Include="Atlivu_Raw.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Atlivu.rc">
